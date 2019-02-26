@@ -1,15 +1,65 @@
 import pymongo
 import psycopg2
 import pprint
-def sessions_values(inhoud,colomen,keys):
-    for products in collection.find():
-        print(products)
-        a=a+1
-    return()
+def koppeltabel_values(row,row2):
+    values=[]
+    values.append(str(row).strip(',()\''))
+    values.append(str(row2).strip(',()\''))
+    return(str(values))
+
+def profile_values(inhoud,colomen):
+    product = dict(inhoud[0])
+    values=[str(product[colomen[0]])]
+    return([values,1])
+
+def sessions_values(inhoud,colomen):
+    product = dict(inhoud[0])
+    values=[]
+    time=[]
+    for i in range(len(colomen)):
+        if 'buid' in colomen[i]:
+            values.append(str(product[colomen[i]][0]))
+        elif 'session_start'in colomen[i] or 'session_end' in colomen[i]:
+            a = str(product[colomen[i]])
+            a = a.split(' ')
+            a = a[1].split(':')
+            a[2] = a[2].split('.')
+            a[2] = a[2][0]
+            time.append(a)
+        elif 'has_sale' in colomen[i]:
+            g=[]
+            c=0
+            for b in range(len(time[0])):
+                time[0][b] = int(time[0][b])
+                time[1][b] = int(time[1][b])
+                if c == 1:
+                    g.append((60 - time[0][b] + time[1][b]))
+                    g[b - 1] = g[b - 1] - 1
+                    if g[b] >= 60:
+                        g[b - 1] = g[b - 1] + 1
+                        g[b] = g[b] - 60
+                else:
+                    g.append((time[1][b] - time[0][b]))
+                if c == 0:
+                    if time[0][b] == time[1][b]:
+                        c = 0
+                    else:
+                        c = 1
+            v = 3600
+            for b in range(len(g) - 1):
+                g[b] = g[b] * v
+                v = v / 60
+                v = int(v)
+            time = g[0] + g[1] + g[2]
+            values.append(time)
+            values.append(str(product[colomen[i]]))
+        else:
+            values.append(product[colomen[i]])
+    return([values,1])
 
 
 
-def buids_values(inhoud,colomen,keys):
+def buids_values(inhoud,colomen):
     values=[]
     products=dict(inhoud[0])
     if colomen[0] not in products or len(products['buids'])==0:
@@ -22,105 +72,125 @@ def buids_values(inhoud,colomen,keys):
 
 
 
-def products_values(inhoud,colomen,keys):
-    print('prodcuts_values')
+def product_values(inhoud,colomen,keys):
     values=[]
-    products=dict(inhoud[0])
+    product=dict(inhoud[0])
 
     if 'recommendable' in keys:
-        if products['recommendable'] == False:
+        if product['recommendable'] == False:
             return(0)
     else:
         return(0)
-    if type(products['category']) == list:
-        products['sub_category'] = products['category'][1]
-        products['sub_sub_category'] = products['category'][2]
-        products['category'] = products['category'][0]
+    if type(product['category']) == list:
+        product['sub_category'] = product['category'][1]
+        product['sub_sub_category'] = product['category'][2]
+        product['category'] = product['category'][0]
 
     for i in range(len(colomen)):
         if colomen[i] not in keys:
-            products[colomen[i]] = 'data is missing'
-        if type(products[colomen[i]]) == type(None):
-            products[colomen[i]] = 'None'
+            product[colomen[i]] = 'data is missing'
+        if type(product[colomen[i]]) == type(None):
+            product[colomen[i]] = 'None'
 
         if colomen[i] == 'price' or colomen[i] == 'properties':
-            if 'selling_price' in products[colomen[i]]:
-                values.append(products[colomen[i]]['selling_price'])
+            if 'selling_price' in product[colomen[i]]:
+                values.append(product[colomen[i]]['selling_price'])
             else:
-                key = products[colomen[i]].keys()
+                key = product[colomen[i]].keys()
 
                 if 'doelgroep' not in key:
-                    products[colomen[i]]['doelgroep'] = 'data is missing'
+                    product[colomen[i]]['doelgroep'] = 'data is missing'
 
-                if type(products[colomen[i]]['doelgroep']) == type(None):
-                    products[colomen[i]]['doelgroep'] = 'None'
+                if type(product[colomen[i]]['doelgroep']) == type(None):
+                    product[colomen[i]]['doelgroep'] = 'None'
 
-                if '\'' in products[colomen[i]]['doelgroep']:
-                    values.append(products[colomen[i]]['doelgroep'].replace('\'', ''))
+                if '\'' in product[colomen[i]]['doelgroep']:
+                    values.append(product[colomen[i]]['doelgroep'].replace('\'', ''))
                 else:
-                    values.append(products[colomen[i]]['doelgroep'])
+                    values.append(product[colomen[i]]['doelgroep'])
         else:
             if colomen[i] == 'recommendable':
-                values.append(str(products[colomen[i]]))
+                values.append(str(product[colomen[i]]))
             else:
-                if '\'' in products[colomen[i]]:
-                    values.append(products[colomen[i]].replace('\'', ''))
+                if '\'' in product[colomen[i]]:
+                    values.append(product[colomen[i]].replace('\'', ''))
                 else:
-                    values.append(products[colomen[i]])
+                    values.append(product[colomen[i]])
     return([values,1])
 
 def databases():
     client = pymongo.MongoClient()
     conn = psycopg2.connect("dbname=data_selection user=postgres password=123456")
     cur = conn.cursor()
-    tabel_all_values(client, conn, cur)
+    cur2 = conn.cursor()
+    cur3= conn.cursor()
+    tabel_all_values(client, conn, cur, cur2, cur3)
     # close communication with the database
     cur.close()
     conn.close()
 
 
-def tabel_all_values(client, conn, cur):
-    collection = client.data_selection.products
-    colomen = ['_id','brand','category','gender','price','properties','recommendable','sub_category','sub_sub_category']
-    tabel='products'
-    c=0
-    for products in collection.find():
-        keys = products.keys()
-        inhoud =[]
-        inhoud.append(products)
-        if tabel=='products':
-            tempvalues=products_values(inhoud,colomen,keys)
-        if tabel=='buids':
-            tempvalues = buids_values(inhoud, colomen, keys)
+def tabel_all_values(client, conn, cur, cur2, cur3):
+    collection = client.data_selection.sessions
+    colomen = ['_id','_id']
+    tabel='viewed_before'
 
+    if tabel==tabel=='buids_profiles':
+        from_tabel=['buids','profiles']
+    elif tabel=='orders':
+        from_tabel=['products','sessions']
+    else:
+        from_tabel = ['products', 'profiles']
 
-        if tempvalues==0:
-            continue
-        for i in range(tempvalues[1]):
-            if tempvalues[1]>1:
-                values = str(tempvalues[0][i])
-                values= '\'' + values + '\''
-            else:
-                values=str(tempvalues[0])
-            print(tempvalues)
+    if tabel=='buids_profiles' or tabel=='orders' or tabel=='previous_rec' or tabel=='viewed_before':
+        cur.execute("SELECT "+colomen[0]+" FROM "+from_tabel[0]+ ";")
+        cur2.execute("SELECT "+colomen[1]+" FROM "+from_tabel[1]+ ";")
+        row = 0
+        while row is not None:
+            row = cur.fetchone()
+            row2= cur2.fetchone()
+            values = koppeltabel_values(row, row2)
             values = values.strip('[]')
             values = values.replace('\"', '\'')
+            insert(cur3, conn, values, tabel)
+    else:
+        for product in collection.find():
+            keys = product.keys()
+            inhoud =[]
+            inhoud.append(product)
+            if tabel=='products':
+                tempvalues=product_values(inhoud,colomen,keys)
+            if tabel=='buids':
+                tempvalues = buids_values(inhoud, colomen)
+            if tabel=='sessions':
+                tempvalues=sessions_values(inhoud,colomen)
+            if tabel=='profiles':
+                tempvalues=profile_values(inhoud,colomen)
+            if tempvalues==0:
+                continue
+            for i in range(tempvalues[1]):
+                if tempvalues[1]>1:
+                    values = str(tempvalues[0][i])
+                    values= '\'' + values + '\''
+                else:
+                    values=str(tempvalues[0])
+                values = values.strip('[]')
+                values = values.replace('\"', '\'')
+                insert(cur3, conn, values,tabel)
 
-            insert(cur, conn, values,tabel)
-            c+=1
-
-def insert(cur, conn, values,tabel):
+def insert(cur3, conn, values,tabel):
     try:
         sql = 'INSERT INTO ' + tabel + ' VALUES (' + values + ')'
-        print(sql)
-        cur.execute(sql)
+        cur3.execute(sql)
         conn.commit()
     except psycopg2.IntegrityError:
+        print(sql)
         conn.commit()
 
 databases()
 # colomen products '_id','brand','category','gender','price','properties','recommendable','sub_category','sub_sub_category']
 # colomen buids 'buids'
+# colomen sessions '_id,buid,session_start,session_end,has_sale'
 
 
 
