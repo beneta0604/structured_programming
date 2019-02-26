@@ -190,7 +190,7 @@ def insert(cur3, conn, values,tabel):
 databases()
 # colomen products '_id','brand','category','gender','price','properties','recommendable','sub_category','sub_sub_category']
 # colomen buids 'buids'
-# colomen sessions '_id,buid,session_start,session_end,has_sale'
+# colomen sessions '_id,buid,session_start,session_end,has_sale' 
 
 
 
